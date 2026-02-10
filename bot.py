@@ -100,7 +100,7 @@ def shop_kb():
 @dp.message(CommandStart())
 async def start(message: types.Message):
     await message.answer(
-        f"🎨 PhotoLab AI\n\nБаланс: {get_balance(message.from_user.id)} генераций\n\n👇 Выбери действие",
+        f"🎨 Добро пожаловать в лабораторию\n\nБаланс: {get_balance(message.from_user.id)} генераций\n\n👇 Выбери действие",
         reply_markup=main_kb()
     )
 
