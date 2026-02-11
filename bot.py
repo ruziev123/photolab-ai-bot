@@ -130,7 +130,6 @@ async def start(message: types.Message):
     text += "\n\n👇 Выбери действие"
 
     await message.answer(text, reply_markup=main_kb())
-    )
 
 
 # =================================================
