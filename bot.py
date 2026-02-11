@@ -150,7 +150,7 @@ async def send_invoice(message, stars, title, payload):
 
 
 @dp.message(lambda m: "Trial" in m.text)
-async def buy2(m): await send_invoice(m, 35, "2 генерации", "p2")
+async def buy2(m): await send_invoice(m, 1, "2 генерации", "p2")
 
 
 @dp.message(lambda m: "Starter" in m.text)
