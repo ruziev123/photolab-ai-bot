@@ -206,15 +206,24 @@ async def checkout(q):
 
 @dp.message(lambda m: m.successful_payment)
 async def paid(m):
-    p = m.successful_payment.invoice_payload
+    stars = m.successful_payment.total_amount
 
-    if p == "p2": add_credits(m.from_user.id, 2)
-    if p == "p5": add_credits(m.from_user.id, 5)
-    if p == "p10": add_credits(m.from_user.id, 10)
-    if p == "p20": add_credits(m.from_user.id, 20)
+    if stars == 1:
+        add_credits(m.from_user.id, 2)
 
-    await m.answer(f"Оплачено ✅\nБаланс: {get_balance(m.from_user.id)}", reply_markup=main_kb())
+    elif stars == 75:
+        add_credits(m.from_user.id, 5)
 
+    elif stars == 140:
+        add_credits(m.from_user.id, 10)
+
+    elif stars == 260:
+        add_credits(m.from_user.id, 20)
+
+    await m.answer(
+        f"Оплачено ✅\nБаланс: {get_balance(m.from_user.id)}",
+        reply_markup=main_kb()
+    )
 
 # =================================================
 # TEXT → IMAGE
