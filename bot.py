@@ -32,7 +32,6 @@ CREATE TABLE IF NOT EXISTS users (
     balance INTEGER DEFAULT 0,
     trial_used INTEGER DEFAULT 0
 )
-)
 """)
 conn.commit()
 
