@@ -54,29 +54,37 @@ def add_credits(uid, amount):
 
 
 def use_credit(uid):
-def give_trial(uid):
-    cursor.execute("SELECT trial_used FROM users WHERE user_id=?", (uid,))
-    row = cursor.fetchone()
-
-    if not row:
-        cursor.execute("INSERT INTO users(user_id, balance, trial_used) VALUES(?, 1, 1)", (uid,))
-        conn.commit()
-        return True
-
-    if row[0] == 0:
-        cursor.execute("UPDATE users SET balance = balance + 1, trial_used = 1 WHERE user_id=?", (uid,))
-        conn.commit()
-        return True
-
-    return False
-
     bal = get_balance(uid)
+
     if bal <= 0:
         return False
 
     cursor.execute("UPDATE users SET balance = balance - 1 WHERE user_id=?", (uid,))
     conn.commit()
     return True
+
+
+def give_trial(uid):
+    cursor.execute("SELECT trial_used FROM users WHERE user_id=?", (uid,))
+    row = cursor.fetchone()
+
+    if not row:
+        cursor.execute(
+            "INSERT INTO users(user_id, balance, trial_used) VALUES(?, 1, 1)",
+            (uid,)
+        )
+        conn.commit()
+        return True
+
+    if row[0] == 0:
+        cursor.execute(
+            "UPDATE users SET balance = balance + 1, trial_used = 1 WHERE user_id=?",
+            (uid,)
+        )
+        conn.commit()
+        return True
+
+    return False
 
 
 # =================================================
