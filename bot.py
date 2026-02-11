@@ -1,10 +1,9 @@
 import asyncio
 import os
 import base64
-import hashlib
 import sqlite3
 
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, LabeledPrice
 from dotenv import load_dotenv
@@ -21,8 +20,9 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 
 
 # =================================================
-# SQLITE
+# DATABASE
 # =================================================
+
 conn = sqlite3.connect("database.db")
 cursor = conn.cursor()
 
@@ -35,6 +35,10 @@ CREATE TABLE IF NOT EXISTS users (
 """)
 conn.commit()
 
+
+# -------------------------
+# helpers
+# -------------------------
 
 def get_balance(uid):
     cursor.execute("SELECT balance FROM users WHERE user_id=?", (uid,))
@@ -87,15 +91,9 @@ def give_trial(uid):
 
 
 # =================================================
-# CACHE
-# =================================================
-CACHE_DIR = "cache"
-os.makedirs(CACHE_DIR, exist_ok=True)
-
-
-# =================================================
 # UI
 # =================================================
+
 def main_kb():
     return ReplyKeyboardMarkup(
         keyboard=[
@@ -109,9 +107,9 @@ def main_kb():
 def shop_kb():
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="⚪ Trial • 2 фото • 35⭐")],
+            [KeyboardButton(text="⚪ Trial • 2 фото • 1⭐")],
             [KeyboardButton(text="🟢 Starter • 5 фото • 75⭐")],
-            [KeyboardButton(text="🔵 Popular 🔥 • 10 фото • 140⭐")],
+            [KeyboardButton(text="🔵 Popular • 10 фото • 140⭐")],
             [KeyboardButton(text="🟣 Pro • 20 фото • 260⭐")],
             [KeyboardButton(text="⬅️ Назад")]
         ],
@@ -122,6 +120,7 @@ def shop_kb():
 # =================================================
 # START
 # =================================================
+
 @dp.message(CommandStart())
 async def start(message: types.Message):
     uid = message.from_user.id
@@ -129,74 +128,74 @@ async def start(message: types.Message):
     trial = give_trial(uid)
     bal = get_balance(uid)
 
-    text = f"🎨 Добро пожаловать в лабораторию\n\nБаланс: {bal} генераций"
+    text = f"🎨 PhotoLab AI\n\nБаланс: {bal} генераций"
 
     if trial:
-        text += "\n\n🎁 Ты получил 1 бесплатную генерацию!"
-
-    text += "\n\n👇 Выбери действие"
+        text += "\n🎁 Ты получил 1 бесплатную генерацию!"
 
     await message.answer(text, reply_markup=main_kb())
 
 
 # =================================================
-# UI BUTTONS
+# BUTTONS
 # =================================================
-@dp.message(lambda m: m.text == "👤 Баланс")
+
+@dp.message(F.text == "👤 Баланс")
 async def balance_btn(m):
     await m.answer(f"Баланс: {get_balance(m.from_user.id)} ⭐", reply_markup=main_kb())
 
 
-@dp.message(lambda m: m.text == "💎 Магазин")
+@dp.message(F.text == "💎 Магазин")
 async def shop_btn(m):
     await m.answer("Выбери пакет:", reply_markup=shop_kb())
 
 
-@dp.message(lambda m: m.text == "⬅️ Назад")
+@dp.message(F.text == "⬅️ Назад")
 async def back_btn(m):
     await m.answer("Главное меню", reply_markup=main_kb())
 
 
-@dp.message(lambda m: m.text == "🖼 Создать")
+@dp.message(F.text == "🖼 Создать")
 async def create_btn(m):
     await m.answer("Напиши описание картинки ✍️")
 
 
-@dp.message(lambda m: m.text == "📸 Фото с описанием")
+@dp.message(F.text == "📸 Фото с описанием")
 async def edit_btn(m):
-    await m.answer("Отправь фото + подпись (какой стиль сделать)")
+    await m.answer("Отправь фото + подпись")
 
 
 # =================================================
 # ⭐ PAYMENTS
 # =================================================
-async def send_invoice(message, stars, title, payload):
+
+async def send_invoice(message, stars, title):
     prices = [LabeledPrice(label=title, amount=stars)]
 
     await bot.send_invoice(
         chat_id=message.chat.id,
         title=title,
         description="AI генерации",
-        payload=payload,
+        payload="stars",
         currency="XTR",
         prices=prices
     )
 
 
-@dp.message(lambda m: "Trial" in m.text)
-async def buy2(m): await send_invoice(m, 1, "2 генерации", "p2")
+@dp.message(F.text.contains("Trial"))
+async def buy2(m): await send_invoice(m, 1, "2 генерации")
 
 
-@dp.message(lambda m: "Starter" in m.text)
-async def buy5(m): await send_invoice(m, 75, "5 генераций", "p5")
+@dp.message(F.text.contains("Starter"))
+async def buy5(m): await send_invoice(m, 75, "5 генераций")
 
 
-@dp.message(lambda m: "Popular" in m.text)
-async def buy10(m): await send_invoice(m, 140, "10 генераций", "p10")
+@dp.message(F.text.contains("Popular"))
+async def buy10(m): await send_invoice(m, 140, "10 генераций")
 
 
-@dp.message(lambda m: "Pro" in m.text)
-async def buy20(m): await send_invoice(m, 260, "20 генераций", "p20")
+@dp.message(F.text.contains("Pro"))
+async def buy20(m): await send_invoice(m, 260, "20 генераций")
 
 
 @dp.pre_checkout_query()
@@ -204,20 +203,17 @@ async def checkout(q):
     await bot.answer_pre_checkout_query(q.id, ok=True)
 
 
+# 🔥 НАДЁЖНАЯ ЛОГИКА ПО amount ⭐
 @dp.message(lambda m: m.successful_payment)
 async def paid(m):
-    p = m.successful_payment.invoice_payload
-    print("PAYLOAD =", p)
+    stars = m.successful_payment.total_amount
 
     if stars == 1:
         add_credits(m.from_user.id, 2)
-
     elif stars == 75:
         add_credits(m.from_user.id, 5)
-
     elif stars == 140:
         add_credits(m.from_user.id, 10)
-
     elif stars == 260:
         add_credits(m.from_user.id, 20)
 
@@ -226,10 +222,12 @@ async def paid(m):
         reply_markup=main_kb()
     )
 
+
 # =================================================
 # TEXT → IMAGE
 # =================================================
-@dp.message(lambda msg: msg.text and "•" not in msg.text and "⭐" not in msg.text)
+
+@dp.message(lambda msg: msg.text and "⭐" not in msg.text)
 async def text_to_image(message: types.Message):
 
     if not use_credit(message.from_user.id):
@@ -256,40 +254,7 @@ async def text_to_image(message: types.Message):
 
 
 # =================================================
-# PHOTO → EDIT
-# =================================================
-@dp.message(lambda msg: msg.photo)
-async def image_edit(message: types.Message):
 
-    if not use_credit(message.from_user.id):
-        await message.answer("Нет генераций ❌ Открой Магазин", reply_markup=main_kb())
-        return
-
-    prompt = message.caption or "make it cool"
-
-    msg = await message.answer("Обрабатываю...")
-
-    photo = message.photo[-1]
-    file = await bot.get_file(photo.file_id)
-    await bot.download_file(file.file_path, "input.png")
-
-    result = client.images.edit(
-        model="gpt-image-1",
-        image=open("input.png", "rb"),
-        prompt=prompt,
-        size="512x512"
-    )
-
-    img = base64.b64decode(result.data[0].b64_json)
-
-    with open("edit.png", "wb") as f:
-        f.write(img)
-
-    await message.answer_photo(types.FSInputFile("edit.png"))
-    await msg.delete()
-
-
-# =================================================
 async def main():
     await dp.start_polling(bot)
 
