@@ -29,7 +29,9 @@ cursor = conn.cursor()
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
     user_id INTEGER PRIMARY KEY,
-    balance INTEGER DEFAULT 0
+    balance INTEGER DEFAULT 0,
+    trial_used INTEGER DEFAULT 0
+)
 )
 """)
 conn.commit()
@@ -52,6 +54,22 @@ def add_credits(uid, amount):
 
 
 def use_credit(uid):
+def give_trial(uid):
+    cursor.execute("SELECT trial_used FROM users WHERE user_id=?", (uid,))
+    row = cursor.fetchone()
+
+    if not row:
+        cursor.execute("INSERT INTO users(user_id, balance, trial_used) VALUES(?, 1, 1)", (uid,))
+        conn.commit()
+        return True
+
+    if row[0] == 0:
+        cursor.execute("UPDATE users SET balance = balance + 1, trial_used = 1 WHERE user_id=?", (uid,))
+        conn.commit()
+        return True
+
+    return False
+
     bal = get_balance(uid)
     if bal <= 0:
         return False
@@ -99,9 +117,19 @@ def shop_kb():
 # =================================================
 @dp.message(CommandStart())
 async def start(message: types.Message):
-    await message.answer(
-        f"🎨 Добро пожаловать в лабораторию\n\nБаланс: {get_balance(message.from_user.id)} генераций\n\n👇 Выбери действие",
-        reply_markup=main_kb()
+    uid = message.from_user.id
+
+    trial = give_trial(uid)
+    bal = get_balance(uid)
+
+    text = f"🎨 Добро пожаловать в лабораторию\n\nБаланс: {bal} генераций"
+
+    if trial:
+        text += "\n\n🎁 Ты получил 1 бесплатную генерацию!"
+
+    text += "\n\n👇 Выбери действие"
+
+    await message.answer(text, reply_markup=main_kb())
     )
 
 
