@@ -206,7 +206,8 @@ async def checkout(q):
 
 @dp.message(lambda m: m.successful_payment)
 async def paid(m):
-    stars = m.successful_payment.total_amount
+    p = m.successful_payment.invoice_payload
+    print("PAYLOAD =", p)
 
     if stars == 1:
         add_credits(m.from_user.id, 2)
