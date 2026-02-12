@@ -241,7 +241,7 @@ async def text_to_image(message: types.Message):
     result = client.images.generate(
         model="gpt-image-1",
         prompt=prompt,
-        size="512x512"
+        size="auto"
     )
 
     img = base64.b64decode(result.data[0].b64_json)
